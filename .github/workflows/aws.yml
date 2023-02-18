@@ -32,27 +32,39 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
       
-      - name: Build and tag Docker image
-        id: build-image
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ./Dockerfile
-          push: false
-          tags: |
-            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest >> $GITHUB_OUTPUT
+      # - name: Build and tag Docker image
+      #   id: build-image
+      #   uses: docker/build-push-action@v2
+      #   with:
+      #     context: .
+      #     file: ./Dockerfile
+      #     push: false
+      #     tags: |
+      #       ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
 
-      - name: Push Docker image to Amazon ECR
-        id: pushed-image
-        if: success() && steps.build-image.outputs.pushed == 'true'
+      # - name: Push Docker image to Amazon ECR
+      #   id: pushed-image
+      #   if: success() && steps.build-image.outputs.pushed == 'true'
+      #   env:
+      #     ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+      #     IMAGE_NAME: ${{ env.ECR_REPOSITORY }}
+      #   run: |
+      #     docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
+      #     docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
         env:
           ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_NAME: ${{ env.ECR_REPOSITORY }}
         run: |
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_NAME .
           docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
-          docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
-          
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_NAME
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Checking image
         run: |
