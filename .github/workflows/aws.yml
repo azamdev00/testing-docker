@@ -8,7 +8,7 @@ on:
 env:
   AWS_REGION: us-east-1
   AWS_ACCOUNT_ID: 920108834017
-  ECS_CLUSTER: cluster1
+  ECS_CLUSTER: Cluster1
   ECS_SERVICE: node-app-service
   ECS_TASK_DEFINITION: node-app-definition
   ECS_CONTAINER: node-app-container
