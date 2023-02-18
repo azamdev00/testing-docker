@@ -49,7 +49,6 @@ jobs:
           ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
           IMAGE_NAME: ${{ env.ECR_REPOSITORY }}
         run: |
-          echo "Image ---------- = ${{ steps.build-image.outputs.image }}" 
           docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
           docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
@@ -57,6 +56,7 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
+          echo "Image ---------- = ${{ steps.build-image.outputs.image }}" 
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.ECS_CONTAINER }}
           image: ${{ steps.puhsed-image.outputs.image }}
