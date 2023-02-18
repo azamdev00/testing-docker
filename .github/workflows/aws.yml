@@ -1,4 +1,13 @@
-name: Build and Deploy to ECS
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# GitHub recommends pinning actions to a commit SHA.
+# To get a newer version, you will need to update the SHA.
+# You can also reference a tag or branch, but the action may change without warning.
+
+name: Deploy to Amazon ECS
 
 on:
   push:
@@ -6,78 +15,59 @@ on:
       - main
 
 env:
-  AWS_REGION: us-east-1
-  AWS_ACCOUNT_ID: 920108834017
-  ECS_CLUSTER: Cluster1
-  ECS_SERVICE: node-app-service
-  ECS_TASK_DEFINITION: node-app-definition
-  ECS_CONTAINER: node-app-container
-  ECR_REPOSITORY: node-app
+  AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
+  ECR_REPOSITORY: node-app           # set this to your Amazon ECR repository name
+  ECS_SERVICE: node-app-service                 # set this to your Amazon ECS service name
+  ECS_CLUSTER: Cluster1                 # set this to your Amazon ECS cluster name
+  ECS_TASK_DEFINITION: ./node-app-definition # set this to the path to your Amazon ECS task definition
+                                               # file, e.g. .aws/task-definition.json
+  CONTAINER_NAME: node-app-container           # set this to the name of the container in the
+                                               # containerDefinitions section of your task definition
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v3
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-      
-      # - name: Build and tag Docker image
-      #   id: build-image
-      #   uses: docker/build-push-action@v2
-      #   with:
-      #     context: .
-      #     file: ./Dockerfile
-      #     push: false
-      #     tags: |
-      #       ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-
-      # - name: Push Docker image to Amazon ECR
-      #   id: pushed-image
-      #   if: success() && steps.build-image.outputs.pushed == 'true'
-      #   env:
-      #     ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-      #     IMAGE_NAME: ${{ env.ECR_REPOSITORY }}
-      #   run: |
-      #     docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
-      #     docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
-          ECR_REGISTRY: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-          IMAGE_NAME: ${{ env.ECR_REPOSITORY }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA .
-          docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:$GITHUB_SHA $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
-          docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_NAME" >> $GITHUB_OUTPUT
-
-      - name: Checking image
-        run: |
-          echo "Image ---------- = " >> ${{ steps.pushed-image.outputs }}
-          echo "Image ---------- = " >> ${{ steps.build-image.outputs }} 
+          # Build a docker container and
+          # push it to ECR so that it can
+          # be deployed to ECS.
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        uses: aws-actions/amazon-ecs-render-task-definition@97587c9d45a4930bf0e3da8dd2feb2a463cf4a3a
         with:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.ECS_CONTAINER }}
+          container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image }}
 
       - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        uses: aws-actions/amazon-ecs-deploy-task-definition@de0132cf8cdedb79975c6d42b77eb7ea193cf28e
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
