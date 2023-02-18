@@ -48,20 +48,49 @@ jobs:
           docker tag node-app:latest public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
           docker push public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
 
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@97587c9d45a4930bf0e3da8dd2feb2a463cf4a3a
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-        with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
+      - name: Retrieve existing task definition
+        id: get-task-def
+        run: |
+          echo "::set-output name=task-def::$(aws ecs describe-task-definition --task-definition node-app-definition --query 'taskDefinition' --output json)"
 
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@de0132cf8cdedb79975c6d42b77eb7ea193cf28e
+      - name: Register new task definition revision with updated image
+        id: register-task-def
+        uses: aws-actions/amazon-ecs-register-task-definition@v1
         with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+          family: node-app-definition
+          container-name: node-app-container
+          image: node-app:${{ github.sha }}
+          task-role-arn: ${{ steps.get-task-def.outputs.task-def.taskRoleArn }}
+          execution-role-arn: ${{ steps.get-task-def.outputs.task-def.executionRoleArn }}
+          cpu: ${{ steps.get-task-def.outputs.task-def.cpu }}
+          memory: ${{ steps.get-task-def.outputs.task-def.memory }}
+          requires-compatibilities: ${{ steps.get-task-def.outputs.task-def.requiresCompatibilities }}
+          network-mode: ${{ steps.get-task-def.outputs.task-def.networkMode }}
+          task-def-overrides: |
+            {
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "my-ecs-logs",
+                  "awslogs-region": "${{ env.AWS_REGION }}",
+                  "awslogs-stream-prefix": "node-app-container"
+                }
+              }
+            }
+      # - name: Fill in the new image ID in the Amazon ECS task definition
+      #   id: task-def
+      #   uses: aws-actions/amazon-ecs-render-task-definition@97587c9d45a4930bf0e3da8dd2feb2a463cf4a3a
+      #   env:
+      #     IMAGE_TAG: ${{ github.sha }}
+      #   with:
+      #     task-definition: ${{ env.ECS_TASK_DEFINITION }}
+      #     container-name: ${{ env.CONTAINER_NAME }}
+      #     image: public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
+
+      # - name: Deploy Amazon ECS task definition
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@de0132cf8cdedb79975c6d42b77eb7ea193cf28e
+      #   with:
+      #     task-definition: ${{ steps.task-def.outputs.task-definition }}
+      #     service: ${{ env.ECS_SERVICE }}
+      #     cluster: ${{ env.ECS_CLUSTER }}
+      #     wait-for-service-stability: true
