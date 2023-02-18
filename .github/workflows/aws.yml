@@ -55,10 +55,11 @@ jobs:
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
+        run: |
+          echo "Image ---------- = ${{ steps.puhsed-image.outputs.image }}" 
         with:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.ECS_CONTAINER }}
-          echo "Image = ${{ steps.puhsed-image.outputs.image }}" 
           image: ${{ steps.puhsed-image.outputs.image }}
 
       - name: Deploy Amazon ECS task definition
