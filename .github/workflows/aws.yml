@@ -48,7 +48,7 @@ jobs:
           REPOSITORY: node-app
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t node-app . .
+          docker build -t node-app .
           docker push public.ecr.aws/f3m8i3o3/node-app:latest
 
       # - name: Build, tag, and push image to Amazon ECR
