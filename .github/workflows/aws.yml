@@ -13,8 +13,11 @@ env:
     # file, e.g. .aws/task-definition.json
   CONTAINER_NAME: node-app-container # set this to the name of the container in the
     # containerDefinitions section of your task definition
+  REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+  REGISTRY_ALIAS: f3m8i3o3
+  REPOSITORY: node-app
+  IMAGE_TAG: ${{ github.sha }}
   
-
 jobs:
   build:
     name: Build Image
@@ -42,14 +45,14 @@ jobs:
           registry-type: public
 
       - name: Build, tag, and push docker image to Amazon ECR Public
-        env:
-          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REGISTRY_ALIAS: f3m8i3o3
-          REPOSITORY: node-app
-          IMAGE_TAG: ${{ github.sha }}
+        # env:
+        #   REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+        #   REGISTRY_ALIAS: f3m8i3o3
+        #   REPOSITORY: node-app
+        #   IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t node-app .
-          docker push public.ecr.aws/f3m8i3o3/node-app:latest
+          docker build -t ${{ steps.login-ecr-public.outputs.registry }}/f3m8i3o3/node-app:${{ github.sha }} .
+          docker push ${{ steps.login-ecr-public.outputs.registry }}/f3m8i3o3/node-app:${{ github.sha }}
 
       # - name: Build, tag, and push image to Amazon ECR
       #   id: build-image
