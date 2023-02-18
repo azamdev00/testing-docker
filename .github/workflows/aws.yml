@@ -44,7 +44,7 @@ jobs:
           REPOSITORY: node-app
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/f3m8i3o3
+          aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/f3m8i3o3
           docker build -t node-app .
           docker tag node-app:latest public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
           docker push public.ecr.aws/f3m8i3o3/node-app:$IMAGE_TAG
