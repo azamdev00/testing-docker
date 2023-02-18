@@ -3,10 +3,20 @@ name: Deploy to Amazon ECS
 on:
   push:
     branches: [ main ]
-  
+
+env:
+  AWS_REGION: us-east-1 # set this to your preferred AWS region, e.g. us-west-1
+  ECR_REPOSITORY: node-app # set this to your Amazon ECR repository name
+  ECS_SERVICE: node-app-service # set this to your Amazon ECS service name
+  ECS_CLUSTER: cluster1 # set this to your Amazon ECS cluster name
+  ECS_TASK_DEFINITION: .aws/task-definition.json # set this to the path to your Amazon ECS task definition
+    # file, e.g. .aws/task-definition.json
+  CONTAINER_NAME: node-app-container # set this to the name of the container in the
+    # containerDefinitions section of your task definition
+
 jobs:
   build:
-    name: Build Image
+    name: Build IMage
     runs-on: ubuntu-latest
     environment: production
 
@@ -19,7 +29,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       # - name: Login to Amazon ECR
       #   id: login-ecr
@@ -31,14 +41,15 @@ jobs:
           registry-type: public
 
       - name: Build, tag, and push docker image to Amazon ECR Public
-        # env:
-        #   REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-        #   REGISTRY_ALIAS: f3m8i3o3
-        #   REPOSITORY: node-app
-        #   IMAGE_TAG: ${{ github.sha }}
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REGISTRY_ALIAS: f3m8i3o3
+          REPOSITORY: node-app
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t ${{ github.sha }} .
-          docker push ${{ steps.login-ecr-public.outputs.registry }}/f3m8i3o3/node-app:${{ github.sha }}
+          docker build -t $IMAGE_TAG .
+          docker tag $REPOSITORY:$IMAGE_TAG $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:$IMAGE_TAG
 
       # - name: Build, tag, and push image to Amazon ECR
       #   id: build-image
