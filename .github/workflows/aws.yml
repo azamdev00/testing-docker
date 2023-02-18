@@ -69,8 +69,10 @@ jobs:
           # Set the output variable for the new task definition ARN
           echo "::set-output name=task-definition-arn::$task_definition_arn"
 
-      - name: Update ECS service
-        uses: aws-actions/amazon-ecs-update-service@v1
+      - name: Deploy new task definition to ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           cluster: ${{ env.ECS_CLUSTER }}
           service: ${{ env.ECS_SERVICE }}
+          task_definition: ${{ steps.create-task-definition.outputs.task-definition-arn }}
+          wait-for-service-stability: true
