@@ -66,10 +66,21 @@ jobs:
             --region "${{ env.AWS_REGION }}" \
             --output json \
           )
-
+          
       - name: Update ECS service to use new task definition
+        id: update-service
+        uses: aws-actions/amazon-ecs-update-service@v1
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE }}
+          task_definition: ${{ steps.create-task-def.outputs.task-def }}
+
+      - name: Cleanup Docker images
         run: |
-          aws ecs update-service \
-            --cluster "${{ env.ECS_CLUSTER }}" \
-            --service "${{ env.ECS_SERVICE }}" \
-            --task-definition "${{ steps.create-task-def.outputs.task-def }}"
+          docker image ls "${{ env.ECR_REPOSITORY }}" -q | xargs -r docker image rm -f
+      # - name: Update ECS service to use new task definition
+      #   run: |
+      #     aws ecs update-service \
+      #       --cluster "${{ env.ECS_CLUSTER }}" \
+      #       --service "${{ env.ECS_SERVICE }}" \
+      #       --task-definition "${{ steps.create-task-def.outputs.task-def }}"
