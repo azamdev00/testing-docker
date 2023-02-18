@@ -63,7 +63,7 @@ jobs:
           family: ${{ steps.describe-task-def.outputs.task-def.family }}
           container-name: ${{ steps.describe-task-def.outputs.task-def.containerDefinitions[0].name }}
           container-image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          task-execution-role: <TASK_EXECUTION_ROLE>
+          task-execution-role: ecsTaskExecutionRole
           task-def-overrides: ${{ toJson(fromJSON(steps.describe-task-def.outputs.task-def) * {family: null, containerDefinitions: [{name: null, image: null}], taskRoleArn: null}) }}
 
       - name: Register new task definition
