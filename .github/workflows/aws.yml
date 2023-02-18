@@ -42,3 +42,13 @@ jobs:
         run: |
           docker tag 920108834017.dkr.ecr.us-east-1.amazonaws.com/node-app:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
           docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
+          
+      - name: Deploy to Amazon ECS
+        if: success() && steps.build-image.outputs.pushed == 'true'
+        uses: aws-actions/amazon-ecs-deploy-task@v2
+        with:
+          cluster: cluster1
+          service: node-app-service
+          task_definition: node-app-definition
+          container_name: node-app-container
+          image: 920108834017.dkr.ecr.us-east-1.amazonaws.com/node:latest
