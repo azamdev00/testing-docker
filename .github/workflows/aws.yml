@@ -56,7 +56,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          # tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          tags: 920108834017.dkr.ecr.us-east-1.amazonaws.com/node-app-container:latest
+
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
