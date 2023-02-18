@@ -67,6 +67,12 @@ jobs:
             --output json \
           )
 
+      - name: Install AWS CLI and ECS CLI
+        uses: aws-actions/setup-ecs-cli@v1
+        with:
+          ecs-cli-version: '1.21.0'
+          aws-cli-version: '2.2.42'
+
       - name: Update ECS service to use new task definition
         id: update-service
         uses: aws-actions/amazon-ecs-update-service@v1
