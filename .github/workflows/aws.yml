@@ -55,7 +55,7 @@ jobs:
         id: create-task-definition
         run: |
           # Get the existing task definition JSON
-          task_definition=$(aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }})
+          task_definition=$(aws ecs describe-task-definition --task-definition node-app-definition)
 
           # Replace the image in the task definition with the newly built Docker image
           task_definition=$(echo $task_definition | jq --arg image ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECS_CONTAINER }}:latest '.taskDefinition.containerDefinitions[0].image = $image')
