@@ -51,30 +51,58 @@ jobs:
           docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
           docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
-      - name: Get existing task definition
-        id: describe-task-def
+      - name: Retrieve task definition
+        id: task-def
         run: |
-          echo "::set-output name=task-def::$(aws ecs describe-task-definition --task-definition ${ECS_TASK_DEFINITION})"
+          echo "::set-output name=arn::$(aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query 'taskDefinition.taskDefinitionArn' --output text)"
 
-      - name: Create new task definition
-        id: create-task-def
+      - name: Create new task definition revision
+        id: new-task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          family: ${{ steps.describe-task-def.outputs.task-def.family }}
-          container-name: ${{ steps.describe-task-def.outputs.task-def.containerDefinitions[0].name }}
-          container-image: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-          task-execution-role: ecsTaskExecutionRole
-          task-def-overrides: ${{ toJson(fromJSON(steps.describe-task-def.outputs.task-def) * {family: null, containerDefinitions: [{name: null, image: null}], taskRoleArn: null}) }}
+          task-definition: ${{ steps.task-def.outputs.arn }}
+          container-name: app
+          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          task-def-overrides: |
+            {
+              "cpu": "256",
+              "memory": "512"
+            }
+        continue-on-error: true
 
-      - name: Register new task definition
-        id: register-task-def
-        run: |
-          echo "::set-output name=task-def-arn::$(aws ecs register-task-definition --cli-input-json '${{ steps.create-task-def.outputs.task-def }}' --query 'taskDefinition.taskDefinitionArn')"
-
-      - name: Update ECS service with new task definition
-        id: update-service
-        uses: aws-actions/amazon-ecs-update-service@v1
+      - name: Update service with new task definition
+        uses: aws-actions/amazon-ecs-deploy-service@v1
         with:
           cluster: ${{ env.ECS_CLUSTER }}
           service: ${{ env.ECS_SERVICE }}
-          task-definition: ${{ steps.register-task-def.outputs.task-def-arn }}
+          task-definition: ${{ steps.new-task-def.outputs.task-definition }}
+          deployment-max-percent: 100
+          deployment-min-healthy-percent: 0
+
+      - name: Retrieve task definition
+        id: task-def
+        run: |
+          echo "::set-output name=arn::$(aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query 'taskDefinition.taskDefinitionArn' --output text)"
+
+      - name: Create new task definition revision
+        id: new-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.arn }}
+          container-name: app
+          image: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          task-def-overrides: |
+            {
+              "cpu": "256",
+              "memory": "512"
+            }
+        continue-on-error: true
+
+      - name: Update service with new task definition
+        uses: aws-actions/amazon-ecs-deploy-service@v1
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE }}
+          task-definition: ${{ steps.new-task-def.outputs.task-definition }}
+          deployment-max-percent: 100
+          deployment-min-healthy-percent: 0
