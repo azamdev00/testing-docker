@@ -58,6 +58,7 @@ jobs:
         with:
           task-definition: ${{ env.ECS_TASK_DEFINITION }}
           container-name: ${{ env.ECS_CONTAINER }}
+          echo "Image = ${{ steps.puhsed-image.outputs.image }}" 
           image: ${{ steps.puhsed-image.outputs.image }}
 
       - name: Deploy Amazon ECS task definition
