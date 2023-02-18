@@ -54,8 +54,8 @@ jobs:
 
       - name: Checking image
         run: |
-          echo "Image ---------- = ${{ steps.build-image.outputs.image }}" 
-          
+          echo "Image ---------- = ${{ steps.pushed-image.outputs.image }}" 
+
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
