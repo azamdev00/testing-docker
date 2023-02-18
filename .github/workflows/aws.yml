@@ -51,28 +51,30 @@ jobs:
           docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
           docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
-      - name: Create new task definition
-        id: create-task-definition
+      - name: Create new ECS task definition
+        id: create-task-def
         run: |
-          # Get the existing task definition JSON
-          task_definition=$(aws ecs describe-task-definition --task-definition node-app-definition)
+          echo ::set-output name=task-def::$(aws ecs register-task-definition \
+            --family "${{ env.ECS_SERVICE }}" \
+            --container-definitions "$(cat task-def.json)" \
+            --requires-compatibilities FARGATE \
+            --cpu 256 \
+            --memory 512 \
+            --network-mode awsvpc \
+            --execution-role-arn "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/my-task-execution-role" \
+            --task-role-arn "arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/my-task-role" \
+            --region "${{ env.AWS_REGION }}" \
+            --output json \
+          )
 
-          # Replace the image in the task definition with the newly built Docker image
-          task_definition=$(echo $task_definition | jq --arg image ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECS_CONTAINER }}:latest '.taskDefinition.containerDefinitions[0].image = $image')
-
-          # Create a new task definition with the updated image
-          new_task_definition=$(aws ecs register-task-definition --cli-input-json "$task_definition")
-
-          # Get the ARN of the new task definition
-          task_definition_arn=$(echo $new_task_definition | jq -r '.taskDefinition.taskDefinitionArn')
-
-          # Set the output variable for the new task definition ARN
-          echo "::set-output name=task-definition-arn::$task_definition_arn"
-
-      - name: Deploy new task definition to ECS service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      - name: Update ECS service to use new task definition
+        id: update-service
+        uses: aws-actions/amazon-ecs-update-service@v1
         with:
           cluster: ${{ env.ECS_CLUSTER }}
           service: ${{ env.ECS_SERVICE }}
-          task_definition: ${{ steps.create-task-definition.outputs.task-definition-arn }}
-          wait-for-service-stability: true
+          task_definition: ${{ steps.create-task-def.outputs.task-def }}
+
+      - name: Cleanup Docker images
+        run: |
+          docker image ls "${{ env.ECR_REPOSITORY }}" -q | xargs -r docker image rm -f
