@@ -59,18 +59,34 @@ jobs:
           docker tag ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
           docker push $ECR_REGISTRY/$IMAGE_NAME:$GITHUB_SHA
 
-      - name: Create new task definition revision
-        id: create-task-def
-        uses: aws-actions/amazon-ecs-create-task-definition@v1
-        with:
-          family: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.ECS_CONTAINER }}
-          image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECS_CONTAINER }}:latest
-          requires-compatibilities: FARGATE
+      - name: Register new task definition revision
+        id: register-task-definition
+        run: |
+          # Get the latest task definition JSON
+          task_definition=$(aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }})
+
+          # Update the image to use the newly built Docker image
+          task_definition=$(echo $task_definition | jq --arg image ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECS_CONTAINER }}:latest '.taskDefinition.containerDefinitions[0].image = $image')
+
+          # Register the new task definition revision
+          task_definition_arn=$(echo $task_definition | jq -r '.taskDefinition.taskDefinitionArn')
+          task_definition=$(echo $task_definition | jq '.taskDefinition | del(.taskDefinitionArn)')
+
+          new_task_definition=$(aws ecs register-task-definition --cli-input-json "$task_definition")
+
+          # Get the new task definition revision number
+          revision=$(echo $new_task_definition | jq -r '.taskDefinition.revision')
+
+          # Set the output variable for the new task definition ARN
+          echo "::set-output name=task-definition-arn::$task_definition_arn:$revision"
 
       - name: Update ECS service
-        uses: aws-actions/amazon-ecs-update-service@v1
-        with:
-          cluster: ${{ env.ECS_CLUSTER }}
-          service: ${{ env.ECS_SERVICE }}
-          task-definition: ${{ steps.create-task-def.outputs.task-definition }}
+        run: |
+          task_definition_arn=$(echo ${{ steps.register-task-definition.outputs.task-definition-arn }})
+
+          # Update the ECS service to use the new task definition revision
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --task-definition $task_definition_arn
