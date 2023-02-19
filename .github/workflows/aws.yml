@@ -66,7 +66,7 @@ jobs:
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
-          cluster: node_cluster
+          cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
 
       - name: Cleanup Docker images
