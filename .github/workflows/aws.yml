@@ -51,7 +51,7 @@ jobs:
         id: build-image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: latest
         run: |
           echo "Login : " >> ${{ steps.login-ecr.outputs.registry }}
           docker build -t $ECR_REGISTRY/f3m8i3o3/$ECR_REPOSITORY:$IMAGE_TAG .
