@@ -23,7 +23,7 @@ export const initializeApp = () => {
 
   app.get("/", (req, res) => {
     return res.status(200).json({
-      name: "Testing Docker Container....",
+      name: "C!/CD with github Actions and AWS",
       version: "v1.0,0",
     });
   });
